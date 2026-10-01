@@ -283,6 +283,7 @@ table.dataTable{color:var(--text-primary)!important}
 </style><style>.sim-front-face{display:block;position:relative;overflow:hidden;width:88px;height:88px;margin:0 auto 4px;background:#eceef1}.sim-slot .sim-front-face{width:100%;height:100%;margin:0}.sim-front-schematic{background-color:#c9cdd2!important;box-shadow:inset 0 0 0 2px #9ba1a8!important}.sim-front-schematic:before,.sim-front-schematic:after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:#777;left:calc(50% - 2px);top:4px}.sim-front-schematic:after{top:auto;bottom:4px}.sim-slot .sim-remove{z-index:2}</style>
 <style>/* Keep native scroll anchoring from moving the viewport during simulator updates. */
 #wizard-overlay,#wizardStepContent,#installation-simulator{overflow-anchor:none;scroll-behavior:auto!important}</style>
+<style>.visiotech-product-link{color:inherit;text-decoration:underline;text-underline-offset:3px}.visiotech-product-link:hover{color:var(--accent,#6366f1)}.visiotech-product-link:focus-visible{outline:2px solid var(--accent,#6366f1);outline-offset:3px}</style>
 </head>
 <body>
 <div id="toast-container"></div>
@@ -405,6 +406,12 @@ const Utils={
   deepClone(o){return JSON.parse(JSON.stringify(o))},
   sanitize(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 };
+const ProductLinks={
+ url(ref){return 'https://www.visiotechsecurity.com/pt/produtos/'+encodeURIComponent(String(ref).trim().toLowerCase().replaceAll('/','_'))+'-detail'},
+ link(ref,label=ref){return `<a class="visiotech-product-link" href="${this.url(ref)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Ver ${Utils.sanitize(ref)} na Visiotech">${Utils.sanitize(label)} <span aria-hidden="true">↗</span></a>`},
+ pdfCell(doc,data,items){if(data.section==='body'&&data.column.index===0){const item=items[data.row.index];if(item?.ref)doc.link(data.cell.x,data.cell.y,data.cell.width,data.cell.height,{url:this.url(item.ref)})}}
+};
+
 /* === STORAGE === */
 const Storage={
   memory:{}, scoped:new Set(['app_users','app_budgets','app_products','app_activity','app_session','app_seeded']),
@@ -1322,7 +1329,7 @@ ${budgets.length>0?`
   <div class="product-catalog-card" data-cat="${p.category}" data-q="${(p.ref+' '+p.description).toLowerCase()}" onclick="Pages.showProductDetail('${p.id}')" style="cursor:pointer">
     <div class="pc-img"><img src="${p.image}" alt="${p.ref}" onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:110px;color:var(--text-muted);font-size:.72rem;text-align:center;padding:8px\\'>${p.ref}</div>'"></div>
     <div class="pc-body">
-      <div class="pc-ref">${p.ref}</div>
+      <div class="pc-ref">${ProductLinks.link(p.ref)}</div>
       <div class="pc-name">${p.description.split('.')[0]}</div>
       <div class="pc-cat">${cats[p.category]||p.category}</div>
       <div class="pc-prices">
@@ -1359,7 +1366,7 @@ ${budgets.length>0?`
           <img src="${p.image}" alt="${p.ref}" style="max-height:160px;object-fit:contain" onerror="this.parentElement.innerHTML='<div style=\'color:var(--text-muted);font-size:.8rem;text-align:center\'>${p.ref}</div>'">
         </div>
         <div style="flex:1;min-width:200px">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);margin-bottom:6px">${p.ref}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);margin-bottom:6px">${ProductLinks.link(p.ref)}</div>
           <div style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-bottom:8px">${p.description.split('.')[0]}</div>
           <span class="badge badge-muted" style="margin-bottom:16px">${catLabel}</span>
           <div style="font-size:.85rem;color:var(--text-secondary);line-height:1.7;margin-bottom:16px">${p.description}</div>
@@ -1552,7 +1559,7 @@ ${budgets.length>0?`
     doc.setDrawColor(230,230,230);doc.line(15,75,195,75);
     const rows=(b.items||[]).map(item=>[item.ref,(item.description?item.description.substring(0,60):'–'),String(item.qty),Utils.formatCurrency(item.unitPrice),Utils.formatCurrency(item.subtotal)]);
     if(rows.length===0)rows.push(['–','Orçamento sem itens detalhados','–','–',Utils.formatCurrency(b.totals?.subtotal||0)]);
-    doc.autoTable({startY:80,head:[['Referência','Descrição','Qtd','P. Unit.','Subtotal']],body:rows,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[99,102,241],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:36},1:{cellWidth:78},2:{cellWidth:15,halign:'center'},3:{cellWidth:28,halign:'right'},4:{cellWidth:28,halign:'right'}},alternateRowStyles:{fillColor:[248,250,252]}});
+    doc.autoTable({didDrawCell:data=>ProductLinks.pdfCell(doc,data,b.items||[]),startY:80,head:[['Referência','Descrição','Qtd','P. Unit.','Subtotal']],body:rows,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[99,102,241],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:36},1:{cellWidth:78},2:{cellWidth:15,halign:'center'},3:{cellWidth:28,halign:'right'},4:{cellWidth:28,halign:'right'}},alternateRowStyles:{fillColor:[248,250,252]}});
     const fy=doc.lastAutoTable?.finalY||80;
     const disc=b.discount||0;
     const discVal=b.totals?.discountValue||0;
@@ -1692,7 +1699,7 @@ footer{margin-top:30px;border-top:1px solid #eee;padding-top:10px;text-align:cen
 <div class="body">
   <div class="img-box">
     <img src="${p.image}" alt="${p.ref}" onerror="this.src='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='">
-    <div style="font-family:monospace;font-size:11px;color:#6366f1;margin-top:10px">${p.ref}</div>
+    <div style="font-family:monospace;font-size:11px;color:#6366f1;margin-top:10px">${ProductLinks.link(p.ref)}</div>
   </div>
   <div class="info">
     <h2>${p.description.split('.')[0]}</h2>
@@ -1919,7 +1926,7 @@ ${navBtns()}`;break;
 <div class="product-select-grid">
   ${placas.map(p=>`<div class="product-select-card ${s.selectedPlaca?.ref===p.ref?'selected':''}" onclick="Wizard.selectPlaca('${p.ref}')">
     <img src="${p.image}" alt="${p.ref}" onerror="this.classList.add('img-error');this.parentElement.innerHTML='<div class=\'img-fallback\'><i class=\'fas fa-image\' style=\'display:block;font-size:1.8rem;margin-bottom:8px;opacity:.3\'></i>${p.ref}</div>'">
-    <div class="psc-ref">${p.ref}</div>
+    <div class="psc-ref">${ProductLinks.link(p.ref)}</div>
     <div class="psc-name">${p.description.split('.')[0]}</div>
     ${p.notes?`<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px">${p.notes}</div>`:''}
     <div class="psc-price">${Utils.formatCurrency(Products.getPrice(p,pm))}</div>
@@ -1942,7 +1949,7 @@ ${modulos.map(p=>{
       onerror="this.outerHTML='<div style=\'display:flex;flex-direction:column;align-items:center;justify-content:center;width:120px;height:120px;opacity:.4\'><i class=\'fas fa-cube\' style=\'font-size:2rem;color:var(--accent)\'></i><div style=\'font-size:.6rem;font-family:JetBrains Mono,monospace;color:var(--accent);margin-top:6px;text-align:center\'>${p.ref}</div></div>'">
   </div>
   <div style="padding:12px;width:100%;box-sizing:border-box">
-    <div class="module-qty-ref">${p.ref}</div>
+    <div class="module-qty-ref">${ProductLinks.link(p.ref)}</div>
     <div class="module-qty-name">${p.description.split('.')[0]}</div>
     <div style="font-size:.75rem;color:var(--text-muted);margin:4px 0 8px;line-height:1.5">${p.description}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
@@ -1971,7 +1978,7 @@ ${s.autoItems.map(item=>`<div class="module-qty-card" style="flex-direction:colu
     <span class="auto-badge" style="position:absolute;top:8px;right:8px">AUTO</span>
   </div>
   <div style="padding:12px;width:100%;box-sizing:border-box">
-    <div class="module-qty-ref">${item.ref}</div>
+    <div class="module-qty-ref">${ProductLinks.link(item.ref)}</div>
     <div class="module-qty-name">${item.description?.split('.')[0]||item.ref}${item._label?` <em style="color:var(--text-muted)">· ${item._label}</em>`:''}</div>
     <div style="font-size:.75rem;color:var(--text-muted);margin:4px 0 8px;line-height:1.5">${item.description||''}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
@@ -1995,7 +2002,7 @@ ${navBtns()}`;break;
 <div class="product-select-grid">
   ${ordered.map(p=>`<div class="product-select-card ${s.selectedMonitor?.ref===p.ref?'selected':''}" onclick="Wizard.selectMonitor('${p.ref}')">
     <img src="${p.image}" alt="${p.ref}" onerror="this.classList.add('img-error');this.parentElement.innerHTML='<div class=\'img-fallback\'><i class=\'fas fa-image\' style=\'display:block;font-size:1.8rem;margin-bottom:8px;opacity:.3\'></i>${p.ref}</div>'">
-    <div class="psc-ref">${p.ref}</div>
+    <div class="psc-ref">${ProductLinks.link(p.ref)}</div>
     <div class="psc-name">${p.description.split('.')[0]}</div>
     ${p.notes?`<div style="font-size:.72rem;color:var(--accent);margin-bottom:4px"><i class="fas ${p.category==='monitor_wifi'?'fa-wifi':'fa-headphones'}"></i> ${p.notes}</div>`:''}
     <div class="psc-price">${Utils.formatCurrency(Products.getPrice(p,pm))} <span style="font-size:.72rem;color:var(--text-muted)">/ un.</span></div>
@@ -2031,7 +2038,7 @@ ${Object.entries(catGroups).filter(([,items])=>items.length>0).map(([grpLabel,it
       onerror="this.outerHTML='<div style=\'display:flex;flex-direction:column;align-items:center;justify-content:center;width:120px;height:120px;opacity:.4\'><i class=\'fas fa-box\' style=\'font-size:2rem;color:var(--accent)\'></i></div>'">
   </div>
   <div style="padding:10px 12px;width:100%;box-sizing:border-box">
-    <div class="module-qty-ref">${p.ref}</div>
+    <div class="module-qty-ref">${ProductLinks.link(p.ref)}</div>
     <div class="module-qty-name">${p.description.split('.')[0]}</div>
     <div style="font-size:.75rem;color:var(--text-muted);margin:3px 0 6px;line-height:1.4">${p.description}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)">
@@ -2080,7 +2087,7 @@ case 10:{
     <img src="${item.image}" alt="${item.ref}" style="width:44px;height:44px;object-fit:contain;background:var(--bg-surface);border-radius:var(--radius-sm);padding:4px;flex-shrink:0"
       onerror="this.outerHTML='<div style=\'width:44px;height:44px;flex-shrink:0;background:var(--bg-surface);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center\'><i class=\'fas fa-cube\' style=\'opacity:.3;font-size:.9rem\'></i></div>'">
     <div style="flex:1;min-width:0">
-      <div style="font-family:\'JetBrains Mono\',monospace;font-size:.68rem;color:var(--accent)">${item.ref}${item.isAutomatic?' <span style="font-size:.6rem;background:var(--accent-muted);color:var(--accent);padding:1px 5px;border-radius:20px">AUTO</span>':''}</div>
+      <div style="font-family:\'JetBrains Mono\',monospace;font-size:.68rem;color:var(--accent)">${ProductLinks.link(item.ref)}${item.isAutomatic?' <span style="font-size:.6rem;background:var(--accent-muted);color:var(--accent);padding:1px 5px;border-radius:20px">AUTO</span>':''}</div>
       <div style="font-size:.78rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.description?.split('.')[0]||''}</div>
     </div>
     <div style="flex-shrink:0;text-align:right">
@@ -2122,7 +2129,7 @@ case 10:{
         <tbody>
           ${allItems.map(item=>`<tr>
             <td><img src="${item.image}" alt="${item.ref}" onerror="this.outerHTML='<div style=\'width:56px;height:56px;flex-shrink:0;background:var(--bg-elevated);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center\'><i class=\'fas fa-cube\' style=\'opacity:.3;font-size:1.2rem\'></i></div>'"></td>
-            <td><span class="col-ref">${item.ref}</span>${item.isAutomatic?' <span class="auto-badge" style="margin-left:4px;font-size:.62rem">AUTO</span>':''}</td>
+            <td><span class="col-ref">${ProductLinks.link(item.ref)}</span>${item.isAutomatic?' <span class="auto-badge" style="margin-left:4px;font-size:.62rem">AUTO</span>':''}</td>
             <td style="font-size:.82rem;line-height:1.4">
               <div style="font-weight:600;color:var(--text-primary)">${item.description?.split('.')[0]||'–'}</div>
               <div style="color:var(--text-muted);font-size:.75rem">${item.description||''}</div>
@@ -2276,7 +2283,7 @@ case 10:{
     doc.text(`Frações: ${s.fractions}`,120,54);doc.text(`Monitores: ${s.totalMonitors}`,120,59);doc.text(`Wi-Fi: ${s.hasWifi?'Sim':'Não'}`,120,64);doc.text(`Preços: PVP${disc>0?` (${disc}% desconto aplicado)`:''}`,120,69);
     doc.setDrawColor(230,230,230);doc.line(15,75,195,75);
     const rows=allItems.map(item=>[item.ref,(item.description?item.description.substring(0,60):'–'),String(item.qty),Utils.formatCurrency(item.unitPrice),Utils.formatCurrency(item.subtotal)]);
-    doc.autoTable({startY:82,head:[['Referência','Descrição','Qtd','P. Unit.','Subtotal']],body:rows,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[99,102,241],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:36},1:{cellWidth:78},2:{cellWidth:15,halign:'center'},3:{cellWidth:28,halign:'right'},4:{cellWidth:28,halign:'right'}},alternateRowStyles:{fillColor:[248,250,252]}});
+    doc.autoTable({didDrawCell:data=>ProductLinks.pdfCell(doc,data,allItems),startY:82,head:[['Referência','Descrição','Qtd','P. Unit.','Subtotal']],body:rows,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[99,102,241],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:36},1:{cellWidth:78},2:{cellWidth:15,halign:'center'},3:{cellWidth:28,halign:'right'},4:{cellWidth:28,halign:'right'}},alternateRowStyles:{fillColor:[248,250,252]}});
     const fy=doc.lastAutoTable?.finalY||80;
     const boxH=disc>0?50:36;
     doc.setFillColor(248,250,252);doc.rect(110,fy+8,85,boxH,'F');doc.setDrawColor(230,230,230);doc.rect(110,fy+8,85,boxH,'S');
@@ -2348,7 +2355,7 @@ footer{margin-top:30px;border-top:1px solid #eee;padding-top:10px;color:#aaa;fon
   <thead><tr><th>Referência</th><th>Descrição</th><th>Qtd</th><th style="text-align:right">Preço Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
   <tbody>
     ${allItems.map(item=>`<tr>
-      <td><strong>${item.ref}</strong>${item.isAutomatic?' <span class="badge">AUTO</span>':''}</td>
+      <td>${ProductLinks.link(item.ref)}${item.isAutomatic?' <span class="badge">AUTO</span>':''}</td>
       <td><div class="desc-main">${item.description?.split('.')[0]||'–'}</div><div class="desc-sub">${item.description||''}</div></td>
       <td style="text-align:center;font-weight:700">${item.qty}</td>
       <td style="text-align:right">${Utils.formatCurrency(item.unitPrice)}</td>
