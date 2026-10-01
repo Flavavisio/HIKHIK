@@ -2165,7 +2165,8 @@ case 10:{
   </div>
 </div>`;break;}
     }
-    document.getElementById('wizardStepContent').innerHTML=html;
+    const content=document.getElementById('wizardStepContent');
+    if(s.step===10)StableMarkup.set(content,html,true);else content.innerHTML=html;
     // Scrolling is handled after the complete step and simulator have rendered.
   },
 
@@ -2393,7 +2394,7 @@ const Installation={
 
  render(){const host=document.getElementById('installation-simulator');if(!host)return;const st=this.sync(),inv=this.inventory(),used=new Set(st.bases.flatMap(b=>b.slots).filter(Boolean));const bases=Products.getAll().filter(p=>this.capacity(p));
  const card=(x)=>`<button class="sim-module ${this.selected===x.key?'chosen':''}" draggable="true" data-module="${this.esc(x.key)}" title="Selecionar ${this.esc(x.p.ref)}"><img src="${this.esc(x.p.image)}" alt="${this.esc(x.p.ref)}"><small>${this.esc(x.p.ref)}</small></button>`;
- host.innerHTML=`<div class="card" style="margin:24px 0"><h2>Simulador da instalação</h2><p style="color:var(--text-secondary)">Arraste cada módulo para um lugar. Também pode selecionar um módulo e clicar no lugar. Arraste a pega de uma base para mudar a sua posição.</p><div class="sim-toolbar"><select id="sim-base-select" aria-label="Base de instalação">${bases.map(p=>`<option value="${this.esc(p.ref)}">${this.esc(p.ref)} · ${this.capacity(p)} lugares</option>`).join('')}</select><button class="btn btn-accent" onclick="Installation.add()">Adicionar base</button><button class="btn btn-secondary" onclick="Installation.fill()">Distribuir módulos</button><button class="btn btn-secondary" onclick="Installation.clear()">Limpar layout</button><button class="btn btn-secondary" onclick="Installation.arrange('top')">Alinhar ao topo</button><button class="btn btn-secondary" onclick="Installation.arrange('bottom')">Alinhar por baixo</button><button class="btn btn-secondary" onclick="Installation.print()">Imprimir layout / PDF</button></div><p role="status" style="margin:12px 0;color:var(--accent)">${used.size} / ${inv.length} módulos colocados · ${st.bases.reduce((n,b)=>n+b.slots.length,0)-used.size} lugares livres</p>${Wizard.state.selectedPlaca&&!/DS-KD7003/.test(Wizard.state.selectedPlaca.ref)?'<p>A placa selecionada é independente e não ocupa uma base modular.</p>':''}<div class="sim-pool">${inv.filter(x=>!used.has(x.key)).map(card).join('')||'<span>Todos os módulos estão colocados.</span>'}</div><div class="sim-scroll"><div class="sim-wall" style="width:${Math.max(920,...st.bases.map(b=>b.x+185))}px;height:${Math.max(500,...st.bases.map(b=>b.y+b.slots.length*126+100))}px">${!st.bases.length?'<p style="padding:30px">Adicione bases de 1, 2 ou 3 lugares para começar.</p>':''}${st.bases.map((b,bi)=>`<section class="sim-base" style="left:${b.x}px;top:${b.y}px"><div class="sim-handle" data-base="${bi}">⠿ Base ${bi+1}<button onclick="Installation.deleteBase(${bi})" title="Retirar do layout (mantém o artigo no orçamento)">×</button></div><div class="sim-frame">${b.slots.map((key,si)=>{const x=inv.find(x=>x.key===key);return `<div class="sim-slot" data-b="${bi}" data-i="${si}" tabindex="0" role="button" aria-label="Base ${bi+1}, lugar ${si+1}">${x?card(x)+`<button class="sim-remove" onclick="event.stopPropagation();Installation.remove(${bi},${si})" aria-label="Retirar módulo">×</button>`:`<span>+<br>Lugar ${si+1}</span>`}</div>`}).join('')}</div><small>${this.esc(b.ref)}</small></section>`).join('')}</div></div><p style="font-size:12px;color:var(--text-secondary);margin-top:12px">Vista frontal sem escala. As bases sem fotografia frontal usam uma representação frontal identificada. Cada módulo ocupa um lugar. Adicionar uma base aproveita primeiro as unidades já incluídas no orçamento. Limpar o layout ou retirar uma base não altera os artigos do orçamento.</p></div>`;
+ StableMarkup.set(host,`<div class="card" style="margin:24px 0"><h2>Simulador da instalação</h2><p style="color:var(--text-secondary)">Arraste cada módulo para um lugar. Também pode selecionar um módulo e clicar no lugar. Arraste a pega de uma base para mudar a sua posição.</p><div class="sim-toolbar"><select id="sim-base-select" aria-label="Base de instalação">${bases.map(p=>`<option value="${this.esc(p.ref)}">${this.esc(p.ref)} · ${this.capacity(p)} lugares</option>`).join('')}</select><button class="btn btn-accent" onclick="Installation.add()">Adicionar base</button><button class="btn btn-secondary" onclick="Installation.fill()">Distribuir módulos</button><button class="btn btn-secondary" onclick="Installation.clear()">Limpar layout</button><button class="btn btn-secondary" onclick="Installation.arrange('top')">Alinhar ao topo</button><button class="btn btn-secondary" onclick="Installation.arrange('bottom')">Alinhar por baixo</button><button class="btn btn-secondary" onclick="Installation.print()">Imprimir layout / PDF</button></div><p role="status" style="margin:12px 0;color:var(--accent)">${used.size} / ${inv.length} módulos colocados · ${st.bases.reduce((n,b)=>n+b.slots.length,0)-used.size} lugares livres</p>${Wizard.state.selectedPlaca&&!/DS-KD7003/.test(Wizard.state.selectedPlaca.ref)?'<p>A placa selecionada é independente e não ocupa uma base modular.</p>':''}<div class="sim-pool">${inv.filter(x=>!used.has(x.key)).map(card).join('')||'<span>Todos os módulos estão colocados.</span>'}</div><div class="sim-scroll"><div class="sim-wall" style="width:${Math.max(920,...st.bases.map(b=>b.x+185))}px;height:${Math.max(500,...st.bases.map(b=>b.y+b.slots.length*126+100))}px">${!st.bases.length?'<p style="padding:30px">Adicione bases de 1, 2 ou 3 lugares para começar.</p>':''}${st.bases.map((b,bi)=>`<section class="sim-base" style="left:${b.x}px;top:${b.y}px"><div class="sim-handle" data-base="${bi}">⠿ Base ${bi+1}<button onclick="Installation.deleteBase(${bi})" title="Retirar do layout (mantém o artigo no orçamento)">×</button></div><div class="sim-frame">${b.slots.map((key,si)=>{const x=inv.find(x=>x.key===key);return `<div class="sim-slot" data-b="${bi}" data-i="${si}" tabindex="0" role="button" aria-label="Base ${bi+1}, lugar ${si+1}">${x?card(x)+`<button class="sim-remove" onclick="event.stopPropagation();Installation.remove(${bi},${si})" aria-label="Retirar módulo">×</button>`:`<span>+<br>Lugar ${si+1}</span>`}</div>`}).join('')}</div><small>${this.esc(b.ref)}</small></section>`).join('')}</div></div><p style="font-size:12px;color:var(--text-secondary);margin-top:12px">Vista frontal sem escala. As bases sem fotografia frontal usam uma representação frontal identificada. Cada módulo ocupa um lugar. Adicionar uma base aproveita primeiro as unidades já incluídas no orçamento. Limpar o layout ou retirar uma base não altera os artigos do orçamento.</p></div>`);
  host.querySelectorAll('[data-module]').forEach(el=>{el.onclick=e=>{e.stopPropagation();this.selected=el.dataset.module;this.render()};el.ondragstart=e=>{this.selected=el.dataset.module;e.dataTransfer.setData('text/plain',this.selected)}});
  host.querySelectorAll('.sim-slot').forEach(el=>{el.ondragover=e=>e.preventDefault();el.ondrop=e=>{e.preventDefault();this.place(+el.dataset.b,+el.dataset.i)};el.onclick=()=>this.place(+el.dataset.b,+el.dataset.i);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.place(+el.dataset.b,+el.dataset.i)}}});
  host.querySelectorAll('.sim-handle').forEach(el=>el.onpointerdown=e=>{if(e.target.tagName==='BUTTON')return;const b=st.bases[+el.dataset.base],start={x:e.clientX,y:e.clientY,bx:b.x,by:b.y};el.setPointerCapture(e.pointerId);el.onpointermove=ev=>{b.x=Math.max(0,Math.round((start.bx+ev.clientX-start.x)/10)*10);b.y=Math.max(0,Math.round((start.by+ev.clientY-start.y)/10)*10);el.parentElement.style.left=b.x+'px';el.parentElement.style.top=b.y+'px'};el.onpointerup=()=>{el.onpointermove=null;this.render()}});
@@ -2406,7 +2407,7 @@ Wizard.renderStep=function(){
  const sameStep=this._renderedState===this.state&&this._renderedStep===this.state.step;
  const render=()=>{
   originalWizardRender.call(this);
-  if(this.state.step===10){const host=document.createElement('div');host.id='installation-simulator';document.querySelector('#wizardStepContent .wizard-nav').before(host);Installation.render()}
+  if(this.state.step===10){if(!document.getElementById('installation-simulator')){const host=document.createElement('div');host.id='installation-simulator';document.querySelector('#wizardStepContent .wizard-nav').before(host)}Installation.render()}
   this._renderedState=this.state;this._renderedStep=this.state.step;
  };
  if(sameStep)return LayoutViewport.update(render);
@@ -2465,6 +2466,42 @@ Installation.print=function(saved){
 };
 
 /* Preserve the viewport when editing the current step or rebuilding the layout. */
+/* Update existing summary controls instead of destroying the active element. */
+const StableMarkup={
+ key(node){return node.nodeType===1?(node.id||node.getAttribute('data-module')||''):''},
+ compatible(a,b){return a&&a.nodeType===b.nodeType&&(a.nodeType!==1||(a.tagName===b.tagName&&this.key(a)===this.key(b)))},
+ patch(current,next){
+  if(current.nodeType!==1){if(current.nodeValue!==next.nodeValue)current.nodeValue=next.nodeValue;return}
+  if(next.id==='installation-simulator'&&next.hasAttribute('data-preserve-layout'))return;
+  const expanded=current.tagName==='DETAILS'?current.open:null;
+  for(const attr of Array.from(current.attributes))if(!next.hasAttribute(attr.name)&&!(current.tagName==='DETAILS'&&attr.name==='open'))current.removeAttribute(attr.name);
+  for(const attr of Array.from(next.attributes))if(current.getAttribute(attr.name)!==attr.value)current.setAttribute(attr.name,attr.value);
+  this.children(current,next);
+  if(expanded!==null)current.open=expanded;
+ },
+ children(parent,next){
+  let index=0;
+  for(const wanted of Array.from(next.childNodes)){
+   let node=parent.childNodes[index];
+   if(!this.compatible(node,wanted)){
+    const match=Array.from(parent.childNodes).slice(index+1).find(n=>this.compatible(n,wanted));
+    if(match){parent.insertBefore(match,node||null);node=match}
+    else{node=wanted.cloneNode(true);parent.insertBefore(node,parent.childNodes[index]||null)}
+   }
+   this.patch(node,wanted);index++;
+  }
+  while(parent.childNodes.length>index)parent.lastChild.remove();
+ },
+ set(parent,html,preserveLayout=false){
+  const template=document.createElement('template');template.innerHTML=html;
+  if(preserveLayout&&parent.querySelector('#installation-simulator')){
+   const nav=template.content.querySelector('.wizard-nav');
+   if(nav){const placeholder=document.createElement('div');placeholder.id='installation-simulator';placeholder.setAttribute('data-preserve-layout','');nav.before(placeholder)}
+  }
+  this.children(parent,template.content);
+ }
+};
+
 const LayoutViewport={
  depth:0,pending:null,
  capture(){
