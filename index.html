@@ -2164,7 +2164,7 @@ case 10:{
 </div>`;break;}
     }
     document.getElementById('wizardStepContent').innerHTML=html;
-    document.getElementById('wizard-overlay').scrollTo({top:0,behavior:'smooth'});
+    // Scrolling is handled after the complete step and simulator have rendered.
   },
 
   changeNum(field,delta){
@@ -2400,7 +2400,15 @@ const Installation={
  saved(id){const b=Storage.get('app_budgets',[]).find(b=>b.id===id);const st=b?.items.find(i=>i.installationLayout)?.installationLayout;if(st)this.print(st);else Toast.info('Este orçamento ainda não tem um layout guardado.')}
 };
 const originalWizardRender=Wizard.renderStep;
-Wizard.renderStep=function(){originalWizardRender.call(this);if(this.state.step===10){const host=document.createElement('div');host.id='installation-simulator';const nav=document.querySelector('#wizardStepContent .wizard-nav');nav.before(host);Installation.render()}};
+Wizard.renderStep=function(){
+ const sameStep=this._renderedState===this.state&&this._renderedStep===this.state.step;
+ const viewport=sameStep?LayoutViewport.capture():null;
+ originalWizardRender.call(this);
+ if(this.state.step===10){const host=document.createElement('div');host.id='installation-simulator';document.querySelector('#wizardStepContent .wizard-nav').before(host);Installation.render()}
+ this._renderedState=this.state;this._renderedStep=this.state.step;
+ if(viewport)LayoutViewport.restore(viewport);
+ else document.getElementById('wizard-overlay').scrollTo({top:0,left:0,behavior:'instant'});
+};
 const originalBuildItems=Wizard.buildFinalItems;
 Wizard.buildFinalItems=function(){const items=originalBuildItems.call(this);if(items.length&&this.state.installation?.bases?.length)items[0].installationLayout=JSON.parse(JSON.stringify(Installation.sync()));return items};
 
@@ -2450,6 +2458,21 @@ Installation.print=function(saved){
  win.document.write(`<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>Layout da instalação</title><style>body{font:13px Arial;color:#263345;margin:24px}h1{font-size:22px}.print-wall{position:relative;transform-origin:top left;transform:scale(${scale});width:${width}px;height:${height}px}.print-base{position:absolute;text-align:center}.print-frame{position:relative;background-repeat:no-repeat;background-color:#c9cdd2}.print-slot{position:absolute;overflow:hidden;background:#eee;display:flex;align-items:center;justify-content:center}.print-photo{width:100%;height:100%;background-repeat:no-repeat}.print-slot img{width:100%;height:100%;object-fit:contain}small{font-size:10px}table{border-collapse:collapse;width:100%;font-size:11px}td,th{text-align:left;padding:8px;border-bottom:1px solid #ddd}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}tr{break-inside:avoid}}</style></head><body><h1>Layout da instalação</h1><p>Vista frontal de montagem · sem escala. Posições listadas de cima para baixo.</p><div style="height:${height*scale+20}px"> <div class="print-wall">${bases}</div></div><table><thead><tr><th>Base</th><th>Referência</th><th>Módulos</th></tr></thead><tbody>${listing}</tbody></table>${st.callDesign?`<p>Chamada: ${st.callDesign.mode==='directory'?'diretório tátil':'botões físicos'} · Botões configurados na placa: ${st.callDesign.plateButtons}.</p>`:''}</body></html>`);win.document.close();
  const sources=new Set(st.bases.flatMap(b=>[this.basePhoto(b.ref)?.src,...b.slots.map(k=>ModuleFrontPhotos[k?.split('#')[0]]?.src)]).filter(Boolean));Promise.all([...sources].map(src=>new Promise(resolve=>{const img=new win.Image();img.onload=img.onerror=resolve;img.src=src}))).then(()=>win.print());
 };
+
+/* Preserve the viewport when editing the current step or rebuilding the layout. */
+const LayoutViewport={
+ capture(){
+  const selectors=['#wizard-overlay','#installation-simulator .sim-scroll'];
+  return {x:window.scrollX,y:window.scrollY,positions:selectors.map(selector=>{const el=document.querySelector(selector);return el?{selector,top:el.scrollTop,left:el.scrollLeft}:null}).filter(Boolean),choices:['sim-base-select','rule-base-family','rule-base-size'].map(id=>({id,value:document.getElementById(id)?.value}))};
+ },
+ restore(saved){
+  for(const {id,value} of saved.choices){const el=document.getElementById(id);if(el&&value!==undefined&&Array.from(el.options).some(o=>o.value===value))el.value=value}
+  for(const p of saved.positions){const el=document.querySelector(p.selector);if(el)el.scrollTo({top:p.top,left:p.left,behavior:'instant'})}
+  if(window.scrollX!==saved.x||window.scrollY!==saved.y)window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'});
+ }
+};
+const renderInstallationWithScroll=Installation.render;
+Installation.render=function(){const viewport=LayoutViewport.capture();try{return renderInstallationWithScroll.call(this)}finally{LayoutViewport.restore(viewport)}};
 
 /* === INIT === */
 document.addEventListener('DOMContentLoaded',()=>App.init());
