@@ -281,6 +281,8 @@ table.dataTable{color:var(--text-primary)!important}
 <style>.sim-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.sim-toolbar select{max-width:100%;padding:8px;background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border);border-radius:6px}.sim-pool{display:flex;gap:10px;flex-wrap:wrap;padding:16px 0;min-height:60px}.sim-module{color:#20242c;background:#fff;border:2px solid transparent;border-radius:5px;width:144px;height:120px;padding:4px;cursor:grab}.sim-module img{height:89px;width:100%;object-fit:contain}.sim-module small{font-size:10px;display:block}.sim-module.chosen{border-color:#6366f1;box-shadow:0 0 0 3px #6366f144}.sim-scroll{overflow:auto;border:1px solid var(--border);border-radius:12px}.sim-wall{position:relative;background-color:#e8ebed;background-image:radial-gradient(#c6cbd0 1px,transparent 1px);background-size:20px 20px}.sim-base{position:absolute;width:166px;color:#364152;text-align:center}.sim-handle{display:flex;justify-content:space-between;cursor:move;touch-action:none;background:#ced4da;padding:5px 8px;font-size:12px;border-radius:6px 6px 0 0}.sim-handle button{font-size:19px;color:#364152}.sim-frame{padding:6px;background:linear-gradient(100deg,#aaa,#e1e1e1,#aaa);border:1px solid #aaa;box-shadow:3px 5px 9px #0002}.sim-slot{height:126px;display:flex;align-items:center;justify-content:center;position:relative;border:1px dashed #9a9fa4;background:#d4d7da;cursor:pointer}.sim-slot:focus{outline:3px solid #6366f1}.sim-remove{position:absolute;right:0;top:0;background:#fff;color:#b91c1c;border-radius:50%;width:20px;height:20px}.sim-base>small{font-size:10px}.sim-slot>span{font-size:12px;color:#606974}
 </style><style>.rules-panel{padding:20px;border:1px solid var(--border-active);background:var(--bg-elevated);border-radius:12px;margin:18px 0}.rules-panel p{margin:8px 0}.rules-panel label{display:flex;flex-direction:column;gap:5px;font-size:12px}.rule-status{padding:10px 14px;border-radius:8px;margin:16px 0;font-weight:700}.rule-status.good{background:var(--success-muted);color:var(--success)}.rule-status.bad,.rule-warning{background:var(--warning-muted);color:var(--warning);padding:10px;border-radius:8px}.rules-footnote{font-size:11px;color:var(--text-secondary)}.photo-frame{position:relative!important;background-image:var(--photo)!important;background-repeat:no-repeat!important;border:0!important;padding:0!important;overflow:hidden}.photo-frame .sim-slot{background:#d3d4d6;border:1px dashed #999}.photo-frame .sim-module{width:100%;height:100%;padding:0;border-radius:0;border:0;overflow:hidden}.photo-frame .sim-module img{width:100%;height:100%;object-fit:cover}.photo-frame .sim-slot:has(.sim-module){border:0}.sim-toolbar button:disabled{opacity:.45;cursor:not-allowed}
 </style><style>.sim-front-face{display:block;position:relative;overflow:hidden;width:88px;height:88px;margin:0 auto 4px;background:#eceef1}.sim-slot .sim-front-face{width:100%;height:100%;margin:0}.sim-front-schematic{background-color:#c9cdd2!important;box-shadow:inset 0 0 0 2px #9ba1a8!important}.sim-front-schematic:before,.sim-front-schematic:after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:#777;left:calc(50% - 2px);top:4px}.sim-front-schematic:after{top:auto;bottom:4px}.sim-slot .sim-remove{z-index:2}</style>
+<style>/* Keep native scroll anchoring from moving the viewport during simulator updates. */
+#wizard-overlay,#wizardStepContent,#installation-simulator{overflow-anchor:none;scroll-behavior:auto!important}</style>
 </head>
 <body>
 <div id="toast-container"></div>
@@ -2402,12 +2404,15 @@ const Installation={
 const originalWizardRender=Wizard.renderStep;
 Wizard.renderStep=function(){
  const sameStep=this._renderedState===this.state&&this._renderedStep===this.state.step;
- const viewport=sameStep?LayoutViewport.capture():null;
- originalWizardRender.call(this);
- if(this.state.step===10){const host=document.createElement('div');host.id='installation-simulator';document.querySelector('#wizardStepContent .wizard-nav').before(host);Installation.render()}
- this._renderedState=this.state;this._renderedStep=this.state.step;
- if(viewport)LayoutViewport.restore(viewport);
- else document.getElementById('wizard-overlay').scrollTo({top:0,left:0,behavior:'instant'});
+ const render=()=>{
+  originalWizardRender.call(this);
+  if(this.state.step===10){const host=document.createElement('div');host.id='installation-simulator';document.querySelector('#wizardStepContent .wizard-nav').before(host);Installation.render()}
+  this._renderedState=this.state;this._renderedStep=this.state.step;
+ };
+ if(sameStep)return LayoutViewport.update(render);
+ LayoutViewport.cancel();LayoutViewport.depth++;
+ try{render()}finally{LayoutViewport.depth--}
+ document.getElementById('wizard-overlay').scrollTo({top:0,left:0,behavior:'instant'});
 };
 const originalBuildItems=Wizard.buildFinalItems;
 Wizard.buildFinalItems=function(){const items=originalBuildItems.call(this);if(items.length&&this.state.installation?.bases?.length)items[0].installationLayout=JSON.parse(JSON.stringify(Installation.sync()));return items};
@@ -2461,18 +2466,42 @@ Installation.print=function(saved){
 
 /* Preserve the viewport when editing the current step or rebuilding the layout. */
 const LayoutViewport={
+ depth:0,pending:null,
  capture(){
   const selectors=['#wizard-overlay','#installation-simulator .sim-scroll'];
   return {x:window.scrollX,y:window.scrollY,positions:selectors.map(selector=>{const el=document.querySelector(selector);return el?{selector,top:el.scrollTop,left:el.scrollLeft}:null}).filter(Boolean),choices:['sim-base-select','rule-base-family','rule-base-size'].map(id=>({id,value:document.getElementById(id)?.value}))};
  },
  restore(saved){
   for(const {id,value} of saved.choices){const el=document.getElementById(id);if(el&&value!==undefined&&Array.from(el.options).some(o=>o.value===value))el.value=value}
-  for(const p of saved.positions){const el=document.querySelector(p.selector);if(el)el.scrollTo({top:p.top,left:p.left,behavior:'instant'})}
+  for(const p of saved.positions){const el=document.querySelector(p.selector);if(el){el.scrollTop=p.top;el.scrollLeft=p.left}}
   if(window.scrollX!==saved.x||window.scrollY!==saved.y)window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'});
+ },
+ cancel(){const p=this.pending;if(!p)return;cancelAnimationFrame(p.frame);p.content.style.minHeight=p.minHeight;this.pending=null},
+ update(render){
+  if(this.depth)return render();
+  const saved=this.capture();this.cancel();
+  const content=document.getElementById('wizardStepContent');
+  if(!content)return render();
+  const minHeight=content.style.minHeight;
+  content.style.minHeight=content.getBoundingClientRect().height+'px';
+  this.depth++;
+  let result;
+  try{result=render()}finally{
+   this.depth--;this.restore(saved);
+   const pending={content,minHeight,frame:0};this.pending=pending;
+   pending.frame=requestAnimationFrame(()=>{
+    if(this.pending!==pending)return;
+    content.style.minHeight=minHeight;this.restore(saved);
+    pending.frame=requestAnimationFrame(()=>{if(this.pending===pending){this.restore(saved);this.pending=null}});
+   });
+  }
+  return result;
  }
 };
+// A new user gesture takes priority over a queued viewport restoration.
+for(const event of ['wheel','touchstart','pointerdown','keydown'])document.addEventListener(event,()=>LayoutViewport.cancel(),{capture:true,passive:true});
 const renderInstallationWithScroll=Installation.render;
-Installation.render=function(){const viewport=LayoutViewport.capture();try{return renderInstallationWithScroll.call(this)}finally{LayoutViewport.restore(viewport)}};
+Installation.render=function(){return LayoutViewport.update(()=>renderInstallationWithScroll.call(this))};
 
 /* === INIT === */
 document.addEventListener('DOMContentLoaded',()=>App.init());
