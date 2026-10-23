@@ -26,7 +26,7 @@ for (const [monitors, groups] of [[1,1],[22,1],[23,2],[44,2],[45,3],[66,3],[67,4
   assert.equal(qty('DS-KAW150-4N'), groups, `${monitors} Wi-Fi: sources`);
   assert.equal(qty('DS-KAD7060EY'), 1);
   assert.equal(qty('DS-KAD7060EY-S'), groups-1, `${monitors} Wi-Fi: expansion distributors`);
-  assert.equal(qty('DS-KAD7061EY'), 5, 'patamar count follows floors, not monitor count');
+  assert.equal(qty('DS-KAD7061EY'), Math.ceil(monitors/4), 'one patamar per four monitors, rounded up');
   assert(Wizard.validateStep());
 }
 reset(false,66);
@@ -60,9 +60,9 @@ assert.equal(items[0].guidedConfiguration.patamarQty,9);
 for(const item of items)assert.equal(item.subtotal,item.qty*item.unitPrice);
 Guide.setBuilding('floors',7);
 Wizard.computeAutoItems();
-assert.equal(qty('DS-KAD7061EY'),7,'changing floors resets the manual quantity');
+assert.equal(qty('DS-KAD7061EY'),9,'floor changes preserve manual quantities');
 Wizard.setPatamarQty(10);Wizard.setPatamarQty(null);
-assert.equal(qty('DS-KAD7061EY'),7);
+assert.equal(qty('DS-KAD7061EY'),12);
 Wizard.state.monitorsPerFraction=false;
 assert.equal(Guide.sequence()[0],11);
 assert(!Guide.sequence().includes(4),'no standalone Wi-Fi step');
@@ -93,5 +93,19 @@ const edited=Wizard.buildFinalItems();
 assert.equal(edited[0].guidedConfiguration.finalQuantities['DS-KAD7061EY'],0);
 for(const item of edited)assert.equal(item.subtotal,item.qty*item.unitPrice);
 Wizard.resetFinalQuantities();
-assert.equal(Wizard.buildFinalItems().find(p=>p.ref==='DS-KAD7061EY').qty,5);
+assert.equal(Wizard.buildFinalItems().find(p=>p.ref==='DS-KAD7061EY').qty,18);
 console.log('PASS: Wi-Fi/wired capacity boundaries, 71 wired monitors, editable bill, persistent removals, automatic sizing, overrides, totals, metadata and navigation');
+
+for (const monitors of [1,4,5,8,9,66,68,69,70,71,72,73,500]) {
+ for(const wifi of [false,true]) {
+  reset(wifi,monitors,99);
+  assert.equal(qty('DS-KAD7061EY'),Math.ceil(monitors/4));
+  assert.equal(Wizard.buildFinalItems().find(p=>p.ref==='DS-KAD7061EY').qty,Math.ceil(monitors/4));
+ }
+}
+reset(false,71);
+Wizard.setFinalQty('DS-KH7100EY-E2',73);
+assert.equal(Wizard.buildFinalItems().find(p=>p.ref==='DS-KAD7061EY').qty,19,'final monitor edits resize patamar');
+assert(!html.includes('1 por piso'));
+assert(!html.includes('1 distribuidor por piso'));
+console.log('PASS: patamar boundaries 1/4/5/71/72/73, both monitor types, floors independent, reset and final edits');
